@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment & secrets
+.env
+.env.*
+env/
+.DS_Store
+
+# Logs & outputs
+logs/
+*.log
+
+# Power BI
+*.pbix
+*.pbit
+
+# OS
+Thumbs.db
+
+# Guide Files
+*_Guide*

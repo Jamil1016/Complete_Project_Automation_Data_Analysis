@@ -1,0 +1,6 @@
+# DAX Measures (Sketch)
+- Total Tickets := COUNTROWS('Fact Tickets')
+- Completed Tickets := CALCULATE([Total Tickets], 'Fact Tickets'[Status] = "Completed")
+- SLA Met % := DIVIDE([Tickets Within SLA], [Completed Tickets])
+- Backlog := CALCULATE([Total Tickets], 'Fact Tickets'[Status] <> "Completed")
+- Avg Duration (hrs) := AVERAGEX('Fact Tickets', 'Fact Tickets'[DurationHours])
