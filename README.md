@@ -191,7 +191,6 @@ psql "host=$env:SUPABASE_HOST dbname=$env:SUPABASE_DB user=$env:SUPABASE_USER pa
 Write-Host "Done!"
 
 ```
----
 
 VS Code SQLTools (optional)
 Add this to your `.vscode/settings.json` if you use SQLTools:
@@ -211,3 +210,81 @@ Add this to your `.vscode/settings.json` if you use SQLTools:
   ]
 }
 ```
+---
+### Checking of Setup and Environment
+
+* Python venv works `pip list` shows packages installed.
+    ```powershell
+    Package            Version
+    ------------------ -----------
+    certifi            2025.8.3
+    charset-normalizer 3.4.3
+    colorama           0.4.6
+    greenlet           3.2.4
+    idna               3.10
+    iniconfig          2.1.0
+    loguru             0.7.3
+    numpy              2.3.2
+    packaging          25.0
+    pandas             2.3.1
+    pip                25.2
+    pluggy             1.6.0
+    psycopg            3.2.9
+    psycopg-binary     3.2.9
+    Pygments           2.19.2
+    pytest             8.4.1
+    python-dateutil    2.9.0.post0
+    python-dotenv      1.1.1
+    pytz               2025.2
+    requests           2.32.4
+    six                1.17.0
+    SQLAlchemy         2.0.43
+    typing_extensions  4.14.1
+    tzdata             2025.2
+    urllib3            2.5.0
+    win32_setctime     1.2.0
+    ```
+
+* `python etl/check_connection.py --list-tables` succeeds.
+
+    ```powershell
+    2025-08-18 15:02:53.998 | INFO     | __main__:main:40 - Connecting to aws-1-ap-southeast-1.pooler.supabase.com:6543 db=postgres user=postgres.cspfypozqwlxfdplyevj sslmode=require
+    2025-08-18 15:02:54.777 | INFO     | __main__:main:48 - Connected: version=PostgreSQL 17.4 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit
+    2025-08-18 15:02:54.777 | INFO     | __main__:main:49 - Context: db=postgres, user=postgres, now=2025-08-18 07:02:54.134358+00:00
+    2025-08-18 15:02:54.860 | SUCCESS  | __main__:main:62 - Basic query OK (SELECT 1)
+    ```
+
+* Test connectivity to Supabase Postgres DB.
+
+    [test_connectivity.ps1](./tests/test_connectivity.ps1)
+
+    ```powershell
+    # Load .env file into PowerShell $env: variables
+    Get-Content .env | ForEach-Object {
+        if ($_ -match "^(.*?)=(.*)$") {
+            [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
+            Write-Host "Loaded $($matches[1])"
+        }
+    }
+
+    Test-NetConnection $env:SUPABASE_HOST -Port $env:SUPABASE_PORT
+    ```
+  * If the test is succesfull that means your network can reach Supabase you'll see something like this:
+  ```powershell
+  ComputerName     : db.abc123xyz.supabase.co
+  RemoteAddress    : 3.218.45.11
+  RemotePort       : 5432
+  InterfaceAlias   : Wi-Fi
+  TcpTestSucceeded : True
+  ```
+  * If failed it means your network/firewall is blocking outbound 5432. We’ll need to either:
+
+    * Use Supabase SQL Editor (browser) for now, or
+
+    * Connect via pgAdmin / DBeaver with SSL enabled, or
+
+    * Check firewall rules.
+  ```powershell
+  TcpTestSucceeded : False
+  ```
+  
