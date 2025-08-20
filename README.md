@@ -287,4 +287,144 @@ Add this to your `.vscode/settings.json` if you use SQLTools:
   ```powershell
   TcpTestSucceeded : False
   ```
-  
+## **PostgreSQL & Supabase Training**
+
+1.) Copy the sql script from [03_database_schema.sql](/etl/sql/03_database_schema.sql) then run the script in Supabase > SQL Editor. This will create tables in supabase project.
+```sql
+-- 1. Departments Table
+CREATE TABLE IF NOT EXISTS departments (
+    department_id SERIAL PRIMARY KEY,
+    department_name VARCHAR(100) NOT NULL
+);
+
+-- 2. Employees Table
+CREATE TABLE IF NOT EXISTS employees (
+    employee_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100) UNIQUE,
+    department_id INT REFERENCES departments(department_id),
+    hire_date DATE,
+    salary NUMERIC(10,2)
+);
+
+-- 3. Projects Table
+CREATE TABLE IF NOT EXISTS projects (
+    project_id SERIAL PRIMARY KEY,
+    project_name VARCHAR(100),
+    start_date DATE,
+    end_date DATE,
+    budget NUMERIC(12,2),
+    department_id INT REFERENCES departments(department_id)
+);
+
+-- 4. Timesheets Table
+CREATE TABLE IF NOT EXISTS timesheets (
+    timesheet_id SERIAL PRIMARY KEY,
+    employee_id INT REFERENCES employees(employee_id),
+    project_id INT REFERENCES projects(project_id),
+    work_date DATE,
+    hours_worked NUMERIC(5,2)
+);
+
+-- 5. Automation Logs Table
+CREATE TABLE IF NOT EXISTS automation_logs (
+    log_id SERIAL PRIMARY KEY,
+    employee_id INT REFERENCES employees(employee_id),
+    log_date TIMESTAMP,
+    task_name VARCHAR(100),
+    status VARCHAR(20),
+    details TEXT
+);
+
+-- 6. Sales Orders Table
+CREATE TABLE IF NOT EXISTS sales_orders (
+    order_id SERIAL PRIMARY KEY,
+    order_date DATE,
+    customer_name VARCHAR(100),
+    employee_id INT REFERENCES employees(employee_id),
+    amount NUMERIC(10,2),
+    status VARCHAR(20)
+);
+
+```
+
+2.) Run the python scripts to upload all the csv files to each tables.
+```python
+import os
+import pandas as pd
+import psycopg
+from dotenv import load_dotenv
+
+# Load env variables
+load_dotenv()
+
+host = os.getenv("SUPABASE_HOST")
+port = os.getenv("SUPABASE_PORT")
+dbname = os.getenv("SUPABASE_DB")
+user = os.getenv("SUPABASE_USER")
+password = os.getenv("SUPABASE_PASSWORD")
+sslmode = os.getenv("SUPABASE_SSLMODE")
+
+# Connection string
+conninfo = f"host={host} port={port} dbname={dbname} user={user} password={password} sslmode={sslmode}"
+
+def upload_csv(table_name, csv_path):
+    df = pd.read_csv(csv_path)
+
+    # Replace NaN with None for SQL NULL
+    df = df.where(pd.notnull(df), None)
+
+    # Build insert query dynamically
+    columns = ", ".join(df.columns)
+    placeholders = ", ".join(["%s"] * len(df.columns))
+    sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+
+    with psycopg.connect(conninfo, prepare_threshold=None) as conn:  # 👈 disable auto prepared statements
+        with conn.cursor() as cur:
+            cur.executemany(sql, [tuple(row) for _, row in df.iterrows()])
+        conn.commit()
+
+# Upload all CSVs
+upload_csv("departments", "datasets/to_upload/departments.csv")
+upload_csv("employees", "datasets/to_upload/employees.csv")
+upload_csv("projects", "datasets/to_upload/projects.csv")
+upload_csv("timesheets", "datasets/to_upload/timesheets.csv")
+upload_csv("automation_logs", "datasets/to_upload/automation_logs.csv")
+upload_csv("sales_orders", "datasets/to_upload/sales_orders.csv")
+
+```
+3.) Learned how to **list all tables** in PostgreSQL.
+  * Activating psql using [psql_access.ps1](/etl/psql_access.ps1)
+    ```powershell
+    Write-Host "Loading environment variables from .env..."
+
+    # Load .env file into PowerShell $env: variables
+    Get-Content .env | ForEach-Object {
+        if ($_ -match "^(.*?)=(.*)$") {
+            [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
+            Write-Host "Loaded $($matches[1])"
+        }
+    }
+
+    Write-Host "Environment variables loaded."
+    Write-Host "Running SQL files against Supabase..."
+
+    # Run schema
+    psql "host=$env:SUPABASE_HOST dbname=$env:SUPABASE_DB user=$env:SUPABASE_USER password=$env:SUPABASE_PASSWORD port=$env:SUPABASE_PORT sslmode=require"
+    ```
+
+  * Input `\dt` in powershell to list all tables.
+    ```powershell
+    postgres=> \dt
+                  List of relations
+    Schema |      Name       | Type  |  Owner
+    --------+-----------------+-------+----------
+    public | automation_logs | table | postgres
+    public | departments     | table | postgres
+    public | employees       | table | postgres
+    public | projects        | table | postgres
+    public | sales_orders    | table | postgres
+    public | timesheets      | table | postgres
+    ```
+
